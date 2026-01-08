@@ -129,3 +129,8 @@ This project is scanned using AI Code Guard in GitHub Actions to detect suspicio
 
 * Integrity & security checks on pull requests
 
+---
+
+## 📜 License
+
+**MIT License**
