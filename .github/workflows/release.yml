@@ -1,69 +1,42 @@
-name: Auto Release
+name: Release
 
 on:
   push:
-    branches: [ main ]
-
-permissions:
-  contents: write
-  pull-requests: write
+    branches: [main]
 
 jobs:
-  test:
+  release:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.21"
-      - name: Test
-        run: go test ./...
-
-  release-please:
-    needs: test
-    runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
+    permissions:
+      contents: write
     
     steps:
       - uses: actions/checkout@v4
-      - id: release
-        uses: google-github-actions/release-please-action@v4
-        with:
-          release-type: go
-          package-name: guard
-
-  build-and-release:
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
-    runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        goos: [linux, darwin, windows]
-        goarch: [amd64, arm64]
-    
-    steps:
-      - uses: actions/checkout@v4
+      
       - uses: actions/setup-go@v5
         with:
           go-version: "1.21"
       
-      - name: Build binaries
+      - name: Build all binaries
         run: |
           mkdir -p dist
-          EXT=""
-          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
           
-          GOOS=${{ matrix.goos }} \
-          GOARCH=${{ matrix.goarch }} \
-          CGO_ENABLED=0 \
-          go build -ldflags="-s -w" -o dist/guard-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}
+          # Linux
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o dist/guard-linux-amd64
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o dist/guard-linux-arm64
+          
+          # macOS
+          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -o dist/guard-darwin-amd64
+          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o dist/guard-darwin-arm64
+          
+          # Windows
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o dist/guard-windows-amd64.exe
+          GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -o dist/guard-windows-arm64.exe
       
-      - name: Upload binaries to release
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.release-please.outputs.tag_name }}
-          files: dist/*
+          tag_name: latest
+          name: Latest Release
           generate_release_notes: true
+          files: dist/*
